@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy[asyncio]
+psycopg2-binary
+pydantic-settings
+python-dotenv
+httpx
+openai
+alembic
+asyncpg
+pgvector
+python-multipart
+aioboto3
+pypdf

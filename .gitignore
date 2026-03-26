@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+.pytest_cache/
+
+# Docker
+/db_data/
+/minio-data/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+.python-version
+.vscode/
+.idea/
+/docs/
