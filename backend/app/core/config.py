@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     MINIO_BUCKET_NAME: str = Field(default="verbumlab")
 
     # Embeddings
-    EMBEDDING_MODEL: str = Field(default="text-embedding-3-small")
+    EMBEDDING_MODEL: str = Field(default="jeffh/intfloat-multilingual-e5-large:q8_0")
     OLLAMA_BASE_URL: str = Field(default="http://localhost:11434")
 
 settings = Settings()

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from sqlalchemy import create_engine, text
-from core.config import settings
+from app.core.config import settings
 import httpx
 
 router = APIRouter()

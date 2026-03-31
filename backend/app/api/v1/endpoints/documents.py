@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.session import get_db
-from services.document import process_document_ingestion
-from schemas.document import DocumentRead
+from app.db.session import get_db
+from app.services.document import process_document_ingestion, search_document_chunks_fts
+from app.schemas.document import DocumentRead
+from app.schemas.search import SearchResponse
 import json
 
 router = APIRouter()
@@ -45,3 +46,22 @@ async def upload_document(
         return document
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+
+@router.get("/search-fts", response_model=SearchResponse)
+async def search_fts(
+    q: str,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Test endpoint for Full-Text Search on document chunks.
+    """
+    try:
+        results = await search_document_chunks_fts(db, q, limit)
+        return {
+            "query": q,
+            "results": results,
+            "total_results": len(results)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")

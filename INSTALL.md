@@ -68,9 +68,8 @@ If you prefer running the backend locally for faster iteration:
     ```
 
 4.  **Run with Hot-Reload**:
-    Navigate to the `app` directory and start Uvicorn:
+    Start Uvicorn from the `backend` directory:
     ```bash
-    cd app
     uvicorn main:app --reload
     ```
     > [!TIP]

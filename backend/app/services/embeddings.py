@@ -1,6 +1,6 @@
 from typing import List
 from openai import AsyncOpenAI
-from core.config import settings
+from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,19 +20,22 @@ class EmbeddingService:
         )
         self.model = settings.EMBEDDING_MODEL
 
-    async def get_embeddings(self, text: str) -> List[float]:
+    async def get_embeddings(self, text: str, prefix: str = "") -> List[float]:
         """
         Generate a vector embedding for a given text string.
 
         Args:
             text (str): The input text to embed.
+            prefix (str, optional): Prefix for the text (e.g., 'passage: ' or 'query: '). Defaults to "".
 
         Returns:
             List[float]: The generated vector embedding.
         """
         try:
+            # Add prefix if provided (required by models like E5)
+            full_text = f"{prefix}{text}"
             response = await self.client.embeddings.create(
-                input=[text],
+                input=[full_text],
                 model=self.model
             )
             return response.data[0].embedding

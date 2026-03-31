@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from api.v1.endpoints import utils, llm, documents
+from app.api.v1.endpoints import utils, llm, documents
 
 api_router = APIRouter()
 api_router.include_router(utils.router, prefix="/utils", tags=["utils"])

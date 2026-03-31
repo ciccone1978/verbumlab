@@ -1,5 +1,5 @@
 import aioboto3
-from core.config import settings
+from app.core.config import settings
 from botocore.exceptions import ClientError
 import logging
 

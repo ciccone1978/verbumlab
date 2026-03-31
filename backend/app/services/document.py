@@ -2,14 +2,49 @@ import uuid
 from typing import List
 from io import BytesIO
 from pypdf import PdfReader
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.document import Document
-from models.document_chunk import DocumentChunk
-from services.s3 import s3_service
-from services.embeddings import embedding_service
+from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
+from app.services.s3 import s3_service
+from app.services.embeddings import embedding_service
 import logging
 
-logger = logging.getLogger(__name__)
+async def search_document_chunks_fts(
+    db: AsyncSession,
+    query: str,
+    limit: int = 10
+) -> List[dict]:
+    """
+    Perform a Full-Text Search (FTS) on document chunks using PostgreSQL TSVECTOR.
+
+    Args:
+        db (AsyncSession): Database session.
+        query (str): The search query string.
+        limit (int, optional): Maximum number of results to return. Defaults to 10.
+
+    Returns:
+        List[dict]: A list of matching chunks with their relevance scores.
+    """
+    from sqlalchemy import select, desc
+    
+    # We use raw SQL for FTS ranking to get the relevance score
+    # ts_rank returns a float representing relevance
+    sql_query = text(
+        """
+        SELECT 
+            id, document_id, content, page_number, chunk_index, created_at,
+            ts_rank(fts_tokens, to_tsquery('italian', :query)) as score
+        FROM document_chunks
+        WHERE fts_tokens @@ to_tsquery('italian', :query)
+        ORDER BY score DESC
+        LIMIT :limit
+        """
+    )
+    
+    result = await db.execute(sql_query, {"query": query.replace(" ", " & "), "limit": limit})
+    rows = result.mappings().all()
+    return rows
 
 async def process_document_ingestion(
     db: AsyncSession,
@@ -67,9 +102,8 @@ async def process_document_ingestion(
             if not text:
                 continue
                 
-            # For each page, generate embeddings
-            # (In a real app, you might want more granular chunking)
-            vector = await embedding_service.get_embeddings(text)
+            # For each page, generate embeddings with 'passage: ' prefix for E5 models
+            vector = await embedding_service.get_embeddings(text, prefix="passage: ")
             
             db_chunk = DocumentChunk(
                 document_id=doc_id,
@@ -83,6 +117,7 @@ async def process_document_ingestion(
         # 5. Finalize
         db_document.status = "completed"
         await db.commit()
+        await db.refresh(db_document)
         return db_document
         
     except Exception as e:
