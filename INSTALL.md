@@ -34,43 +34,69 @@ Build and start all services (database, object storage, and backend).
 ```bash
 docker compose up --build
 ```
+> [!IMPORTANT]
+> The `minio-init` service will automatically create the `verbumlab` bucket upon startup. You can monitor the logs with `docker compose logs -f minio-init` to verify success.
 
 ---
 
-## 5. Testing the API
-Once the containers are running, you can test the following endpoints:
+## 5. Database Migrations (Alembic)
+After the database container is up, you **must** apply the latest database schema migrations.
+
+### If running via Docker:
+```bash
+docker exec -it backend-vlab-01 alembic upgrade head
+```
+
+### If running locally:
+```bash
+cd backend
+# Ensure your virtualenv is active
+alembic upgrade head
+```
+
+---
+
+## 6. Ollama Model Setup
+The system requires specific models to be pulled into Ollama before use. Run these commands on your host machine (where Ollama is installed):
+
+```bash
+# For Embeddings
+ollama pull mxbai-embed-large
+
+# For Generation (Chat/RAG)
+ollama pull qwen3:8b
+```
+
+---
+
+## 7. Testing the API
+Once the services are running and migrated, test the endpoints:
 
 -   **Welcome**: `GET http://localhost:8000/`
--   **Database**: `GET http://localhost:8000/api/v1/utils/test-db`
--   **Ollama**: `GET http://localhost:8000/api/v1/utils/test-ollama`
--   **LLM test**: `GET http://localhost:8000/api/v1/llm/test-llm?model=llama3`
+-   **Database Check**: `GET http://localhost:8000/api/v1/utils/test-db`
+-   **Ollama Check**: `GET http://localhost:8000/api/v1/utils/test-ollama`
+-   **Chat (RAG)**: `POST http://localhost:8000/api/v1/chat/ask` with JSON `{"query": "..."}`
 
-## 6. Development (without Docker)
+---
+
+## 8. Development (Local Backend)
 If you prefer running the backend locally for faster iteration:
 
 1.  **Start Infrastructure Only**:
-    If you don't want to run the backend in Docker but need the DB and MinIO:
     ```bash
-    docker compose up db minio -d
+    docker compose up db minio minio-init -d
     ```
 
 2.  **Setup Virtual Environment**:
-    Navigate to the `backend` folder and create a venv:
     ```bash
     cd backend
     python -m venv venv
-    source venv/bin/activate  # On Windows use: venv\Scripts\activate
-    ```
-
-3.  **Install Dependencies**:
-    ```bash
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
     pip install -r requirements.txt
     ```
 
-4.  **Run with Hot-Reload**:
-    Start Uvicorn from the `backend` directory:
+3.  **Run Migrations & Start**:
     ```bash
+    alembic upgrade head
     uvicorn main:app --reload
     ```
-    > [!TIP]
-    > Since the backend code expects the `.env` file to be in the root directory, ensure you have followed Step 2.
