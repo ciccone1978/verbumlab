@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 async def search_document_chunks_vector(
     db: AsyncSession,
     query: str,
-    limit: int = 10
+    limit: int = 10,
+    min_score: float = 0.0
 ) -> List[dict]:
     """
     Perform a Semantic Vector Search on document chunks.
@@ -42,19 +43,24 @@ async def search_document_chunks_vector(
             id, document_id, content, page_number, chunk_index, created_at,
             (1 - (embedding <=> CAST(:query_vec AS vector))) as score
         FROM document_chunks
-        ORDER BY embedding <=> CAST(:query_vec AS vector)
+        WHERE (1 - (embedding <=> CAST(:query_vec AS vector))) >= :min_score
+        ORDER BY score DESC
         LIMIT :limit
         """
     )
     
-    result = await db.execute(sql_query, {"query_vec": str(query_vector), "limit": limit})
+    result = await db.execute(
+        sql_query, 
+        {"query_vec": str(query_vector), "limit": limit, "min_score": min_score}
+    )
     rows = result.mappings().all()
     return rows
 
 async def search_document_chunks_hybrid(
     db: AsyncSession,
     query: str,
-    limit: int = 10
+    limit: int = 10,
+    min_score: float = 0.0
 ) -> List[dict]:
     """
     Perform a Hybrid Search combining Vector Search and Full-Text Search.
@@ -76,28 +82,32 @@ async def search_document_chunks_hybrid(
     
     # 2. Perform Hybrid Search Query
     # We use a CTE approach to calculate both scores and then combine them.
-    # Note: Vector similarity is (1 - distance). FTS rank is normalized.
+    # We use Reciprocal Rank Fusion (RRF)
     sql_query = text(
         """
         WITH vector_results AS (
             SELECT 
                 id, 
-                1 - (embedding <=> CAST(:query_vec AS vector)) as vec_score
+                1 - (embedding <=> CAST(:query_vec AS vector)) as vec_score,
+                ROW_NUMBER() OVER (ORDER BY embedding <=> CAST(:query_vec AS vector)) as vec_rank
             FROM document_chunks
+            WHERE (1 - (embedding <=> CAST(:query_vec AS vector))) >= :min_score
             ORDER BY embedding <=> CAST(:query_vec AS vector)
             LIMIT :limit * 4
         ),
         text_results AS (
             SELECT 
                 id, 
-                ts_rank_cd(fts_tokens, to_tsquery('italian', :query_text)) as fts_score
+                ts_rank_cd(fts_tokens, websearch_to_tsquery('italian', :query_text)) as fts_score,
+                ROW_NUMBER() OVER (ORDER BY ts_rank_cd(fts_tokens, websearch_to_tsquery('italian', :query_text)) DESC) as fts_rank
             FROM document_chunks
-            WHERE fts_tokens @@ to_tsquery('italian', :query_text)
+            WHERE fts_tokens @@ websearch_to_tsquery('italian', :query_text)
             LIMIT :limit * 4
         )
         SELECT 
             c.id, c.document_id, c.content, c.page_number, c.chunk_index, c.created_at,
-            (COALESCE(v.vec_score, 0) * 0.6) + (COALESCE(t.fts_score, 0) * 0.4) as score,
+            -- Reciprocal Rank Fusion (RRF) - The most robust way to combine
+            COALESCE(1.0 / (60 + v.vec_rank), 0) + COALESCE(1.0 / (60 + t.fts_rank), 0) as score,
             v.vec_score,
             t.fts_score
         FROM document_chunks c
@@ -117,7 +127,8 @@ async def search_document_chunks_hybrid(
         {
             "query_vec": str(query_vector), 
             "query_text": fts_query, 
-            "limit": limit
+            "limit": limit,
+            "min_score": min_score
         }
     )
     rows = result.mappings().all()

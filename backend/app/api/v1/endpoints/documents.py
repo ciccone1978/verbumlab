@@ -75,13 +75,14 @@ async def search_fts(
 async def search_hybrid(
     q: str,
     limit: int = 10,
+    min_score: float = 0.0,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Test endpoint for Hybrid Search (Vector 60% + FTS 40%).
     """
     try:
-        results = await search_document_chunks_hybrid(db, q, limit)
+        results = await search_document_chunks_hybrid(db, q, limit, min_score)
         return {
             "query": q,
             "results": results,
@@ -94,13 +95,14 @@ async def search_hybrid(
 async def search_vector(
     q: str,
     limit: int = 10,
+    min_score: float = 0.0,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Test endpoint for Semantic Vector Search.
     """
     try:
-        results = await search_document_chunks_vector(db, q, limit)
+        results = await search_document_chunks_vector(db, q, limit, min_score)
         return {
             "query": q,
             "results": results,
