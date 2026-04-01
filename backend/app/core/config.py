@@ -33,8 +33,9 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = Field(default="minioadmin123")
     MINIO_BUCKET_NAME: str = Field(default="verbumlab")
 
-    # Embeddings
+    # Embeddings and LLM
     EMBEDDING_MODEL: str = Field(default="mxbai-embed-large", env="EMBEDDING_MODEL")
+    LLM_MODEL: str = Field(default="qwen3:8b", env="LLM_MODEL")
     OLLAMA_BASE_URL: str = Field(default="http://localhost:11434")
 
 settings = Settings()

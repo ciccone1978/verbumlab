@@ -106,11 +106,13 @@ async def search_document_chunks_hybrid(
         )
         SELECT 
             c.id, c.document_id, c.content, c.page_number, c.chunk_index, c.created_at,
+            d.title as document_title,
             -- Reciprocal Rank Fusion (RRF) - The most robust way to combine
             COALESCE(1.0 / (60 + v.vec_rank), 0) + COALESCE(1.0 / (60 + t.fts_rank), 0) as score,
             v.vec_score,
             t.fts_score
         FROM document_chunks c
+        JOIN documents d ON c.document_id = d.id
         LEFT JOIN vector_results v ON c.id = v.id
         LEFT JOIN text_results t ON c.id = t.id
         WHERE v.id IS NOT NULL OR t.id IS NOT NULL
