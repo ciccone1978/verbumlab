@@ -28,7 +28,7 @@ def upgrade():
     sa.Column('embedding', Vector(dim=1536), nullable=True),
     sa.Column('fts_tokens', postgresql.TSVECTOR(), sa.Computed("to_tsvector('italian', content)", persisted=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.ForeignKeyConstraint(['document_id'], ['documents.id'], on_delete='CASCADE'),
+    sa.ForeignKeyConstraint(['document_id'], ['documents.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     
