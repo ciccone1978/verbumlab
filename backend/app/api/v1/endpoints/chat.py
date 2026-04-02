@@ -23,6 +23,7 @@ async def ask_question(
         result = await chat_service.ask_question(
             db=db,
             query=request.query,
+            history=request.history,
             limit=request.limit,
             min_score=request.min_score
         )

@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 from app.core.config import settings
 from app.services.document import search_document_chunks_hybrid
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.schemas.chat import ChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -20,22 +21,78 @@ class ChatService:
     def __init__(self):
         self.base_url = settings.OLLAMA_BASE_URL
         self.model = settings.LLM_MODEL
+        self.history_limit = settings.CHAT_HISTORY_LIMIT
 
+    async def rephrase_query(self, query: str, history: List[ChatMessage]) -> str:
+        """
+        Rephrase a user query based on conversation history into a standalone search query.
+        """
+        if not history:
+            return query
+
+        # Filter and limit history
+        recent_history = history[-self.history_limit:]
+        
+        history_str = "\n".join([f"{msg.role}: {msg.content}" for msg in recent_history])
+        
+        rephrase_prompt = f"""Dato il seguente storico della conversazione e l'ultima domanda dell'utente, 
+riscrivi la domanda in una query di ricerca stand-alone ed efficace per un sistema RAG.
+La query deve essere concisa, in italiano, e contenere tutti i termini necessari per la ricerca senza riferimenti pronominali ambigui.
+Restituisci SOLO la query, senza introduzioni o spiegazioni.
+
+### STORICO CONVERSAZIONE:
+{history_str}
+
+### ULTIMA DOMANDA:
+{query}
+
+### QUERY DI RICERCA:"""
+
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json={
+                        "model": self.model,
+                        "prompt": rephrase_prompt,
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.0,  # Deterministic for rephrasing
+                        }
+                    }
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    rephrased = result.get("response", query).strip()
+                    logger.info(f"Rephrased query: '{query}' -> '{rephrased}'")
+                    return rephrased if rephrased else query
+                
+                logger.warning(f"Ollama rephrase failed: {response.text}")
+                return query
+        except Exception as e:
+            logger.error(f"Error in rephrase_query: {e}")
+            return query
     async def ask_question(
         self, 
         db: AsyncSession, 
         query: str, 
+        history: List[ChatMessage] = None,
         limit: int = 5, 
         min_score: float = 0.1
     ) -> Dict[str, Any]:
         """
         Ask a question based on retrieved document context.
         """
+        # 0. QUERY TRANSFORMATION: Rephrase based on history if needed
+        search_query = query
+        if history:
+            search_query = await self.rephrase_query(query, history)
+
         # 1. RETRIEVAL: Get relevant chunks using Hybrid Search
-        # search_document_chunks_hybrid now includes 'document_title' due to our join
         chunks = await search_document_chunks_hybrid(
             db=db, 
-            query=query, 
+            query=search_query, 
             limit=limit, 
             min_score=min_score
         )
@@ -76,12 +133,18 @@ class ChatService:
             "Cita sempre le tue fonti includendo il titolo del documento e il numero di pagina, ad esempio: "
             "'Secondo il documento [Titolo] a pagina [X]...'. Rispondi sempre in italiano."
         )
+
+        history_context = ""
+        if history:
+            recent_history = history[-self.history_limit:]
+            h_str = "\n".join([f"{msg.role}: {msg.content}" for msg in recent_history])
+            history_context = f"\n### STORICO CONVERSAZIONE RECENTE:\n{h_str}\n"
         
         full_prompt = f"""{system_prompt}
 
 ### CONTESTO:
 {context_str}
-
+{history_context}
 ### DOMANDA:
 {query}
 

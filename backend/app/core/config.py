@@ -37,5 +37,6 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = Field(default="mxbai-embed-large", env="EMBEDDING_MODEL")
     LLM_MODEL: str = Field(default="qwen3:8b", env="LLM_MODEL")
     OLLAMA_BASE_URL: str = Field(default="http://localhost:11434")
+    CHAT_HISTORY_LIMIT: int = Field(default=5, env="CHAT_HISTORY_LIMIT")
 
 settings = Settings()

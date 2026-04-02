@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from app.api.v1.api import api_router
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="VerbumLab API", version="0.1.0")
 
