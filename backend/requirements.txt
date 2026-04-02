@@ -12,3 +12,7 @@ pgvector
 python-multipart
 aioboto3
 pypdf
+python-jose[cryptography]
+bcrypt
+email-validator
+pytest

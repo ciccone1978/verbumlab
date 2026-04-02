@@ -14,6 +14,8 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
+    API_V1_STR: str = "/api/v1"
+
     # Database
     POSTGRES_USER: str = Field(default="admin")
     POSTGRES_PASSWORD: str = Field(default="admin123")
@@ -32,6 +34,11 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = Field(default="minioadmin")
     MINIO_SECRET_KEY: str = Field(default="minioadmin123")
     MINIO_BUCKET_NAME: str = Field(default="verbumlab")
+
+    # JWT
+    SECRET_KEY: str = Field(default="your-super-secret-key-change-me", env="SECRET_KEY")
+    ALGORITHM: str = Field(default="HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
 
     # Embeddings and LLM
     EMBEDDING_MODEL: str = Field(default="mxbai-embed-large", env="EMBEDDING_MODEL")

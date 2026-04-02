@@ -73,6 +73,8 @@ Restituisci SOLO la query, senza introduzioni o spiegazioni.
         except Exception as e:
             logger.error(f"Error in rephrase_query: {e}")
             return query
+    
+    
     async def ask_question(
         self, 
         db: AsyncSession, 
